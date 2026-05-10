@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+pydantic
+prophet
+pandas
+numpy
+python-dotenv
+anyio
+starlette
+pytest
+httpx
