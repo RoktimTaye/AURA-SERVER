@@ -1,5 +1,4 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from typing import Optional
 from . import models, schemas
 
@@ -23,21 +22,25 @@ def get_or_create_location(db: Session, location_name: str) -> models.Location:
         db.refresh(location)
     return location
 
-def get_directory_data(db: Session, search_item: Optional[str] = None, search_area: Optional[str] = None):
+def get_directory_data(db: Session, search_item: Optional[str] = None, search_district: Optional[str] = None):
     # 1. Define the columns we want to select
     query = db.query(
         models.PriceEntry.id,
         models.Item.name.label("item_name"),
         models.Item.unit,
-        func.min(models.PriceEntry.price).label("min_price"),
-        func.max(models.PriceEntry.price).label("max_price"),
-        models.PriceEntry.distance_miles.label("range_miles"),
-        models.Location.name.label("area"),
-        models.PriceEntry.votes
-    )   
+        models.PriceEntry.price.label("item_modal"),
+        # func.min(models.PriceEntry.price).label("min_price"),
+        # func.max(models.PriceEntry.price).label("max_price"),
+        models.Location.district,
+        # models.PriceEntry.distance_miles.label("range_miles"),
+        # models.Location.name.label("area"),
+        models.PriceEntry.votes,
+        models.PriceEntry.status,
+        models.PriceEntry.timestamp
+    ).join(models.Item).join(models.Location)
         # Add this insted of line 41 and 44 if something breakes
         # .join(models.Item).join(models.Location).filter(models.PriceEntry.status == "APPROVED")
-    
+        
     # 2. Join the necessary tables
     query = query.join(models.Item).join(models.Location)
     
@@ -47,13 +50,13 @@ def get_directory_data(db: Session, search_item: Optional[str] = None, search_ar
     # 4. Apply optional search filters
     if search_item:
         query = query.filter(models.Item.name.ilike(f"%{search_item}%"))
-    if search_area:
-        query = query.filter(models.Location.name.ilike(f"%{search_area}%"))
+    if search_district:
+        query = query.filter(models.Location.name.ilike(f"%{search_district}%"))
 
     # 5. Group the results
-    query = query.group_by(models.Item.name, models.Item.unit, models.Location.name)
+    # query = query.group_by(models.Item.name, models.Item.unit, models.Location.name)
 
-    return query.all()
+    return query.order_by(models.PriceEntry.timestamp.desc()).all()
 
 def create_price_submission(db: Session, submission: schemas.PriceCreate, user_id: int, status: str = "APPROVED"):
     # The logic is now instantly readable thanks to the helper functions

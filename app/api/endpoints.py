@@ -4,22 +4,45 @@ from typing import List
 from ..database import get_db
 from ..import crud,schemas,models
 from ..ml import engine as ml_engine
-
+from sqlalchemy import func
 router = APIRouter()
 
 @router.get("/directory", response_model=List[schemas.DirectoryView])
 def read_directory(district: str = None, item: str = None, db: Session= Depends(get_db)):  # ty:ignore[invalid-parameter-default]
-    data = crud.get_directory_data(db,search_item=item,search_area=district)
+    data = crud.get_directory_data(db,search_item=item,search_district=district)
     
     formatted_data = []
     for entry in data:
+        # formatted_data.append({
+        #     "id":entry.id,
+        #     "item_name":entry.item_name,
+        #     "price_display": f"{int(entry.min_price)}-{int(entry.max_price)} /{entry.unit}",
+        #     "range_miles":entry.range_miles,
+        #     "area": entry.area,
+        #     "votes": entry.votes
+        # })
+        range_stats = db.query(
+            func.min(models.PriceEntry.price),
+            func.max(models.PriceEntry.price)
+        ).join(models.Location).filter(
+            models.PriceEntry.item_id == entry.item_id,
+            models.Location.district == entry.district,
+            models.PriceEntry.status == "APPROVED"
+        ).first()
+        
         formatted_data.append({
-            "id":entry.id,
-            "item_name":entry.item_name,
-            "price_display": f"{int(entry.min_price)}-{int(entry.max_price)} /{entry.unit}",
-            "range_miles":entry.range_miles,
-            "area": entry.area,
-            "votes": entry.votes
+            "id": entry.id,
+            "item_name": entry.item_name,
+            "unit": entry.unit,
+            "price_modal": entry.price_modal,
+            # "price_range": f"{int(range_stats[0])}-{int(range_stats[1])}" if range_stats[0] else"N/A",
+            "price_range": (
+    f"{int(range_stats[0])}-{int(range_stats[1])}"if range_stats and range_stats[0] is not None else "N/A"
+),
+            "locality_full": f"{entry.district} {entry.market_name}",
+            "votes": entry.votes,
+            "status": entry.status,
+            "timestamp": entry.timestamp
         })
     return formatted_data
 

@@ -3,28 +3,50 @@ from datetime import datetime  # noqa: F401
 from typing import List,Optional  # noqa: F401
 
 # Data send by the users
+#For Price Submission (including hierarchical location)
 class PriceCreate(BaseModel):
     item_name:str
-    location_name:str
+    location_name:str # e.g Market name(Fnacy Bazar)
+    district: str #e.g< Kampur Metropolitian
+    state: str # e.g, Assam
     price:float
     distance_miles:float
     
-    class Config:
+    
         # orm_mode = True
-        model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True)
 # What data users will receive(Table view)
 class DirectoryView(BaseModel):
     id:int
     item_name:str
-    price_display:str
-    range_miles:float
-    area:str
+    unit: str
+    price_model: float
+    price_range: str
+    locality_full:str
+    # price_display:str
+    # range_miles:float
+    # area:str
     votes:int
+    status: str
+    timestamp: datetime
     
+    model_config = ConfigDict(from_attributes=True)
     class Config:
         # orm_mode = True
         model_config = ConfigDict(from_attributes=True)
-        
+
+class ForecastDay(BaseModel):
+    date: datetime
+    predicted_prie: float
+    yhat_lower: float
+    yhat_upper: float
+
+class PredictionResponse(BaseModel):
+    item_id:int
+    location_id: int
+    advice: str
+    forecast_data: List[ForecastDay]
+
 # Admin Login
 class UserLogin(BaseModel):
     email:str
