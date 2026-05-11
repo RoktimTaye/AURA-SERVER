@@ -43,7 +43,7 @@ class PriceEntry(Base):
     item = relationship("Item")
     location = relationship("Location")
 
-class Forcast(Base):
+class Forecast(Base):
     __tablename__ = "forecasts"
     id = Column(Integer,primary_key=True,index=True)
     item_id = Column(Integer,ForeignKey("items.id"))

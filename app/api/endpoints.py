@@ -40,16 +40,33 @@ def upload_price(submission: schemas.PriceCreate, user_id: int, db: Session = De
 def vote_entry(entry_id: int, upvote: bool = True, db:Session = Depends(get_db)):
     return crud.update_entry_vote(db,entry_id,increment=upvote)
 
+#Fetch pre-computed Forecast
 @router.get("/forcast/{item_id}")
-def get_item_forcast(item_id: int,db: Session = Depends(get_db)):
-    prices = db.query(
-        models.PriceEntry.price,
-        models.PriceEntry.timestamp
-        ).filter(models.PriceEntry.item_id == item_id).filter(models.PriceEntry.status == "APPROVED").all()
+def get_item_forcast(item_id: int, location_id: int, db: Session = Depends(get_db)):
+    # prices = db.query(
+    #     models.PriceEntry.price,
+    #     models.PriceEntry.timestamp
+    #     ).filter(models.PriceEntry.item_id == item_id).filter(models.PriceEntry.status == "APPROVED").all()
     
-    prediction = ml_engine.generate_forcast(prices)
+    # prediction = ml_engine.generate_forcast(prices)
     
-    return {"item_id": item_id, "prediction": prediction}
+    # return {"item_id": item_id, "prediction": prediction}
+    predictions = db.query(models.Forecast).filter(
+        models.Forecast.item_id == item_id,
+        models.Forecast.location_id == location_id
+    ).order_by(models.Forecast.target_date.asc()).all()
+    
+    if not predictions:
+        return {"message": "Insufficient data for forecast"}
+    
+    #Generate Dicision Support
+    latest_price = predictions[0].predicted_price
+    future_price = predictions[-1].predicted_price
+    advice = "Buy Now" if future_price> latest_price else "Wait to buy"
+    
+    return {"advice": advice,
+            "forecast": [{"date": p.target_date,"price": p.predicted_price}
+                        for p in predictions]}
 
 @router.delete("/admin/entry/{entry_id}")
 def admin_delete(entry_id:int, db:Session = Depends(get_db)):
