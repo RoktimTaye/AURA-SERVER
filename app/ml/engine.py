@@ -33,7 +33,7 @@ def detect_anomaly(new_price:float, historical_prices: list):
     """Uses the Z-Score method to detect outliers.
     If a price is more than 3 standard deviations
     away from the mean,it's fake."""
-    if not historical_prices:
+    if not historical_prices or len(historical_prices) < 2:
         return False
     
     # Calculate the average
@@ -42,7 +42,7 @@ def detect_anomaly(new_price:float, historical_prices: list):
     std_dev = np.std(historical_prices)
     '''This Standard deviation needed to be ckecked further'''
     if std_dev == 0:
-        return False 
+        return abs(new_price - mean) > (mean * 0.5)
     # Calculate Z-Score (NewPrice - Mean) / StdDev
     z_Score = abs(new_price - mean) / std_dev
     #Z-Score threshold is needed to be ckecked properly while model training, for now 3 

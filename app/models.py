@@ -21,7 +21,8 @@ class Location(Base):
     __tablename__ = "locations"
     id = Column(Integer,primary_key=True,index=True)
     name = Column(String,unique=True,index=True)
-    
+    district = Column(String,index=True)
+    state = Column(String,index=True)
 class PriceEntry(Base):
     
     # Primary keys and foreign keys
@@ -39,5 +40,20 @@ class PriceEntry(Base):
     timestamp = Column(DateTime,default=datetime.UTC)
     
     # Relationships to pull names easily
+    item = relationship("Item")
+    location = relationship("Location")
+
+class Forcast(Base):
+    __tablename__ = "forecasts"
+    id = Column(Integer,primary_key=True,index=True)
+    item_id = Column(Integer,ForeignKey("items.id"))
+    location_id = Column(Integer,ForeignKey("loactions.id"))
+    target_date = Column(DateTime)
+    predicted_price = Column(Float)
+    yhat_lower = Column(Float)
+    yhat_upper = Column(Float)
+    trend = Column(String)
+    created_at = Column(DateTime,default=datetime.UTC)
+    
     item = relationship("Item")
     location = relationship("Location")
