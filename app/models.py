@@ -47,7 +47,7 @@ class Forecast(Base):
     __tablename__ = "forecasts"
     id = Column(Integer,primary_key=True,index=True)
     item_id = Column(Integer,ForeignKey("items.id"))
-    location_id = Column(Integer,ForeignKey("loactions.id"))
+    location_id = Column(Integer,ForeignKey("locations.id"))
     target_date = Column(DateTime)
     predicted_price = Column(Float)
     yhat_lower = Column(Float)
