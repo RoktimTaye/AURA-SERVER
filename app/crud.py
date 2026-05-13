@@ -1,6 +1,24 @@
 from sqlalchemy.orm import Session
 from typing import Optional
 from . import models, schemas
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=['bcrypt'],
+                           deprecated='auto')
+def get_user_by_email(db:Session,email: str):
+    return db.query(models.User).filter(models.User.email == email).first()
+
+def create_user(db:Session, user: schemas.UserCreate):
+    hashed_password = pwd_context.hash(user.password)
+    db_user = models.User(email=user.email,hashed_password=hashed_password,role=user.role)
+    
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def verify_password(plain_password,hashed_passowrd):
+    return pwd_context.verify(plain_password,hashed_passowrd)
 
 def get_or_create_item(db: Session, item_name: str) -> models.Item:
     """Finds an item by name, or creates it if it doesn't exist."""

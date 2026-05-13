@@ -47,6 +47,14 @@ class PredictionResponse(BaseModel):
     advice: str
     forecast_data: List[ForecastDay]
 
+class UserCreate(BaseModel):
+    email: str
+    password: str
+    role: str = "admin"
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 # Admin Login
 class UserLogin(BaseModel):
     email:str

@@ -7,6 +7,21 @@ from ..ml import engine as ml_engine
 from sqlalchemy import func
 router = APIRouter()
 
+@router.post("/signup")
+def signup(user:schemas.UserCreate,db: Session = Depends(get_db)):
+    db_user = crud.get_user_by_email(db,email=user.email)
+    if db_user:
+        raise HTTPException(status_code=400,detail="Email already registered")
+    return crud.create_user(db=db,user=user)
+
+@router.post("/login")
+def login(user_credentials: schemas.UserLogin,db: Session = Depends(get_db)):
+    user = crud.get_user_by_email(db,email=user_credentials.email)
+    if not user or not crud.verify_password(user_credentials.password,user.hashed_password):
+        raise HTTPException(status_code=401,detail="Invalid credentials")
+    '''Here Later JWT Token needed to be returned to the frontend, for now to test in postman we return a message'''
+    return {"message": "Login Sucessfull", "role": user.role}
+
 @router.get("/directory", response_model=List[schemas.DirectoryView])
 def read_directory(district: str = None, item: str = None, db: Session= Depends(get_db)):  # ty:ignore[invalid-parameter-default]
     data = crud.get_directory_data(db,search_item=item,search_district=district)
