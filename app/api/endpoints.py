@@ -1,3 +1,5 @@
+
+from datetime import timedelta, timezone,datetime
 from fastapi import APIRouter, Depends,HTTPException
 from sqlalchemy.orm import Session
 from typing import List
@@ -5,8 +7,27 @@ from ..database import get_db
 from ..import crud,schemas,models
 from ..ml import engine as ml_engine
 from sqlalchemy import func
+from dotenv import load_dotenv, find_dotenv
+import jwt
+import os
+
 router = APIRouter()
 
+basedir = os.path.abspath(os.path.dirname(__file__))
+env_path = os.path.join(basedir, "..", "..", ".env")
+load_dotenv(find_dotenv(env_path))
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
+ACCESS_TOKEN_EXPIRES_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRES_MINUTES",30))
+def create_access_token(data: dict,expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        to_encode.update({"exp": expire})
+        encoded_jwt = jwt.encode(to_encode,SECRET_KEY,algorithm=ALGORITHM)
+        return encoded_jwt
 @router.post("/signup")
 def signup(user:schemas.UserCreate,db: Session = Depends(get_db)):
     db_user = crud.get_user_by_email(db,email=user.email)
@@ -19,8 +40,11 @@ def login(user_credentials: schemas.UserLogin,db: Session = Depends(get_db)):
     user = crud.get_user_by_email(db,email=user_credentials.email)
     if not user or not crud.verify_password(user_credentials.password,user.hashed_password):
         raise HTTPException(status_code=401,detail="Invalid credentials")
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRES_MINUTES)
+    access_token = create_access_token(data={"sub": user.email,"role":user.role},expires_delta=access_token_expires)
     '''Here Later JWT Token needed to be returned to the frontend, for now to test in postman we return a message'''
-    return {"message": "Login Sucessfull", "role": user.role}
+    # return {"message": "Login Sucessfull", "role": user.role}
+    return {"access_token": access_token,"token_type": "bearer"}
 
 @router.get("/directory", response_model=List[schemas.DirectoryView])
 def read_directory(district: str = None, item: str = None, db: Session= Depends(get_db)):  # ty:ignore[invalid-parameter-default]
