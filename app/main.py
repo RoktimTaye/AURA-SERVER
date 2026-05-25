@@ -20,6 +20,6 @@ app.add_middleware(
 
 app.include_router(endpoints.router,prefix="/api",tags=["Directory"])
 
-app.get("/")
+@app.get("/")
 def health_check():
     return {"status": "Online", "message": "Aura is running"}

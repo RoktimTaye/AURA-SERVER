@@ -20,7 +20,7 @@ class DirectoryView(BaseModel):
     id:int
     item_name:str
     unit: str
-    price_model: float
+    price_modal: float 
     price_range: str
     locality_full:str
     # price_display:str
@@ -31,13 +31,10 @@ class DirectoryView(BaseModel):
     timestamp: datetime
     
     model_config = ConfigDict(from_attributes=True)
-    class Config:
-        # orm_mode = True
-        model_config = ConfigDict(from_attributes=True)
 
 class ForecastDay(BaseModel):
     date: datetime
-    predicted_prie: float
+    predicted_price: float
     yhat_lower: float
     yhat_upper: float
 
@@ -50,7 +47,7 @@ class PredictionResponse(BaseModel):
 class UserCreate(BaseModel):
     email: str
     password: str
-    role: str = "admin"
+    # role: str = "user"
 
 class Token(BaseModel):
     access_token: str

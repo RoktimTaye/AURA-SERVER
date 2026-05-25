@@ -103,7 +103,7 @@ def vote_entry(entry_id: int, upvote: bool = True, db:Session = Depends(get_db))
     return crud.update_entry_vote(db,entry_id,increment=upvote)
 
 #Fetch pre-computed Forecast
-@router.get("/forcast/{item_id}")
+@router.get("/forecast/{item_id}")
 def get_item_forcast(item_id: int, location_id: int, db: Session = Depends(get_db)):
     # prices = db.query(
     #     models.PriceEntry.price,

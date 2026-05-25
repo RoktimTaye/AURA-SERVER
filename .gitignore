@@ -1,2 +1,9 @@
 .venv
 .env
+check_count.py
+check_counts.py
+fix_schema.py
+seed_db.py
+seed_gov_data.py
+check_db.py
+repro.py
