@@ -20,7 +20,7 @@
 
 ---
 
-## TECH STACK
+## 🛠 TECH STACK
 
 - **Framework**: [FastAPI](https://fastapi.tiangolo.com/) (Asynchronous Python)
 - **Database**: [PostgreSQL](https://www.postgresql.org/) (via [Neon Serverless](https://neon.tech/))
