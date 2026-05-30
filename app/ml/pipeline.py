@@ -72,7 +72,7 @@ def train_single_model(item_id, location_id, data_list):
                 weekly_seasonality=False,
                 yearly_seasonality=False,
                 interval_width=0.95
-            )
+            ) # type: ignore
             model.fit(df)
             
             # Save the brain

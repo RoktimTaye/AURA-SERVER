@@ -1,12 +1,8 @@
-
-import os
 import logging
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
 from prophet import Prophet
 import matplotlib.pyplot as plt
-from sqlalchemy import create_engine
 from app.database import SessionLocal, engine
 from app import models
 
@@ -130,7 +126,7 @@ def run_evaluation():
 
         logger.info(f"Analyzing {len(groups)} Item-District pairs...")
 
-        for (item_id, dname), group in groups:
+        for (item_id, dname), group in groups:  # ty:ignore[not-iterable]
             data_list = group[['price', 'timestamp']].values.tolist()
             res = backtest_model(item_id, dname, data_list)
             if res:

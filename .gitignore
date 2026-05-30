@@ -7,3 +7,5 @@ seed_db.py
 seed_gov_data.py
 check_db.py
 repro.py
+test_directory_diag.py
+test_directory_perf.py

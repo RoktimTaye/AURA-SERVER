@@ -40,7 +40,9 @@ class ForecastDay(BaseModel):
 
 class PredictionResponse(BaseModel):
     item_id:int
-    location_id: int
+    # location_id: int
+    location_id: Optional[int] = None
+    district_id: Optional[str] = None
     advice: str
     forecast_data: List[ForecastDay]
 

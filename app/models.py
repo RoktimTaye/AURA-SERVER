@@ -1,7 +1,8 @@
 import datetime
-from sqlalchemy import Column,Integer,String,Float,DateTime,ForeignKey,UniqueConstraint
+from sqlalchemy import Column,Integer,String,Float,DateTime,ForeignKey,UniqueConstraint,Index
 from sqlalchemy.orm import relationship
 from .database import Base
+
 # from sqlalchemy.ext.declarative import declarative_base
 
 class User(Base):
@@ -39,12 +40,17 @@ class PriceEntry(Base):
     distance_miles = Column(Integer,default=0)
     votes = Column(Integer,default=0)
     status = Column(String,default="APPROVED")
-    timestamp = Column(DateTime,default=datetime.UTC, index=True)
+    # timestamp = Column(DateTime,default=datetime.UTC, index=True)
+    timestamp = Column(DateTime,default=lambda: datetime.datetime.now(datetime.UTC), index=True)
     
     # Relationships to pull names easily
     item = relationship("Item")
     location = relationship("Location")
-
+    
+    __table_args__ = (
+        Index('idx_price_status_item','status','item_id'),
+        Index('idx_price_status_loc','status','location_id')
+    )
 class Forecast(Base):
     __tablename__ = "forecasts"
     id = Column(Integer,primary_key=True,index=True)

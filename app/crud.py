@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from . import models, schemas
 from passlib.context import CryptContext
+from sqlalchemy import func
 
 pwd_context = CryptContext(schemes=['pbkdf2_sha256'],
                            deprecated='auto')
@@ -51,7 +52,7 @@ def get_or_create_location(db: Session, location_name: str, district: str = None
         db.refresh(location)
     return location
 
-def get_directory_data(db: Session, search_item: Optional[str] = None, search_district: Optional[str] = None):
+def get_directory_data(db: Session, search_item: Optional[str] = None, search_district: Optional[str] = None, limit: int =100,offset: int = 0):
     # ... (existing code)
     # 1. Define the columns we want to select
     query = db.query(
@@ -68,7 +69,10 @@ def get_directory_data(db: Session, search_item: Optional[str] = None, search_di
         models.PriceEntry.votes,
         models.PriceEntry.status,
         models.PriceEntry.timestamp,
-        models.PriceEntry.item_id #Added this
+        models.PriceEntry.item_id, #Added this
+        #AGGREGATES: This replaces the loop queries
+        func.min(models.PriceEntry.price).label("min_price"),
+        func.max(models.PriceEntry.price).label("max_price")
     ).join(models.Item).join(models.Location)
         # Add this insted of line 41 and 44 if something breakes
         # .join(models.Item).join(models.Location).filter(models.PriceEntry.status == "APPROVED")
@@ -88,8 +92,12 @@ def get_directory_data(db: Session, search_item: Optional[str] = None, search_di
 
     # 5. Group the results
     # query = query.group_by(models.Item.name, models.Item.unit, models.Location.name)
-
-    return query.order_by(models.PriceEntry.timestamp.desc()).all()
+    
+    # GROUP BY is critical when using min/max with other columns
+    # We group by the unique identifiers of the result rows
+    query = query.group_by(models.PriceEntry.id,models.Item.name,models.Item.unit,models.Location.district,models.Location.name)
+    # 6. Apply Pagination
+    return query.order_by(models.PriceEntry.timestamp.desc()).offset(offset).limit(limit).all()
 
 def create_price_submission(db: Session, submission: schemas.PriceCreate, user_id: int, status: str = "APPROVED"):
     # The logic is now instantly readable thanks to the helper functions

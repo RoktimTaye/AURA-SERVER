@@ -1,4 +1,3 @@
-
 from datetime import timedelta, timezone,datetime
 from fastapi import APIRouter, Depends,HTTPException
 from sqlalchemy.orm import Session
@@ -6,7 +5,6 @@ from typing import List
 from ..database import get_db
 from ..import crud,schemas,models
 from ..ml import engine as ml_engine
-from sqlalchemy import func
 from dotenv import load_dotenv, find_dotenv
 import jwt
 import os
@@ -47,11 +45,16 @@ def login(user_credentials: schemas.UserLogin,db: Session = Depends(get_db)):
     return {"access_token": access_token,"token_type": "bearer"}
 
 @router.get("/directory", response_model=List[schemas.DirectoryView])
-def read_directory(district: str = None, item: str = None, db: Session= Depends(get_db)):  # ty:ignore[invalid-parameter-default]
-    data = crud.get_directory_data(db,search_item=item,search_district=district)
+def read_directory(district: str = None, item: str = None, db: Session= Depends(get_db),skip: int = 0,limit: int = 100):  # ty:ignore[invalid-parameter-default]
+    # data = crud.get_directory_data(db,search_item=item,search_district=district)
     
+    #Pass pagination to CRUD
+    data = crud.get_directory_data(db,search_item=item,search_district=district,limit=limit,offset=skip)
     formatted_data = []
+    '''NOTICE: No more database queries inside this loop!
+        We access 'min_price' and 'max_price' which were already fetched.'''
     for entry in data:
+        '''Old Seperate Rough section'''
         # formatted_data.append({
         #     "id":entry.id,
         #     "item_name":entry.item_name,
@@ -60,14 +63,15 @@ def read_directory(district: str = None, item: str = None, db: Session= Depends(
         #     "area": entry.area,
         #     "votes": entry.votes
         # })
-        range_stats = db.query(
-            func.min(models.PriceEntry.price),
-            func.max(models.PriceEntry.price)
-        ).join(models.Location).filter(
-            models.PriceEntry.item_id == entry.item_id,
-            models.Location.district == entry.district,
-            models.PriceEntry.status == "APPROVED"
-        ).first()
+        '''New Seperate code'''
+        # range_stats = db.query(
+        #     func.min(models.PriceEntry.price),
+        #     func.max(models.PriceEntry.price)
+        # ).join(models.Location).filter(
+        #     models.PriceEntry.item_id == entry.item_id,
+        #     models.Location.district == entry.district,
+        #     models.PriceEntry.status == "APPROVED"
+        # ).first()
         
         formatted_data.append({
             "id": entry.id,
@@ -75,9 +79,9 @@ def read_directory(district: str = None, item: str = None, db: Session= Depends(
             "unit": entry.unit,
             "price_modal": entry.price_modal,
             # "price_range": f"{int(range_stats[0])}-{int(range_stats[1])}" if range_stats[0] else"N/A",
-            "price_range": (
-    f"{int(range_stats[0])}-{int(range_stats[1])}"if range_stats and range_stats[0] is not None else "N/A"
-),
+            "price_range":
+    # f"{int(range_stats[0])}-{int(range_stats[1])}"if range_stats and range_stats[0] is not None else "N/A"
+    f"{int(entry.min_price)} - {int(entry.max_price)}" if entry.min_price is not None else "N/A",
             "locality_full": f"{entry.district} {entry.market_name}",
             "votes": entry.votes,
             "status": entry.status,
@@ -104,7 +108,8 @@ def vote_entry(entry_id: int, upvote: bool = True, db:Session = Depends(get_db))
 
 #Fetch pre-computed Forecast
 @router.get("/forecast/{item_id}")
-def get_item_forcast(item_id: int, location_id: int, db: Session = Depends(get_db)):
+# def get_item_forcast(item_id: int, location_id: int, db: Session = Depends(get_db)):
+def get_item_forcast(item_id: int, district: str, db: Session = Depends(get_db)):
     # prices = db.query(
     #     models.PriceEntry.price,
     #     models.PriceEntry.timestamp
@@ -115,7 +120,7 @@ def get_item_forcast(item_id: int, location_id: int, db: Session = Depends(get_d
     # return {"item_id": item_id, "prediction": prediction}
     predictions = db.query(models.Forecast).filter(
         models.Forecast.item_id == item_id,
-        models.Forecast.location_id == location_id
+        models.Forecast.district == district
     ).order_by(models.Forecast.target_date.asc()).all()
     
     if not predictions:
@@ -126,8 +131,15 @@ def get_item_forcast(item_id: int, location_id: int, db: Session = Depends(get_d
     future_price = predictions[-1].predicted_price
     advice = "Buy Now" if future_price> latest_price else "Wait to buy"
     
-    return {"advice": advice,
-            "forecast": [{"date": p.target_date,"price": p.predicted_price}
+    return {
+        "item_id": item_id,
+        "district": district,
+        "advice": advice,
+            "forecast": [{"date": p.target_date,
+                            "predicted_price": p.predicted_price,
+                            "yhat_lower": p.yhat_lower,
+                            "yhat_upper": p.yhat_upper
+                        }
                         for p in predictions]}
 
 @router.delete("/admin/entry/{entry_id}")
