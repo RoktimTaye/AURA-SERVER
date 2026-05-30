@@ -3,7 +3,7 @@
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688.svg?style=flat&logo=FastAPI&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-336791.svg?style=flat&logo=postgresql&logoColor=white)
-![ML](https://img.shields.io/badge/ML-Prophet%20%7C%20NumPy-orange.svg)
+![ML](https://img.shields.io/badge/ML-Prophet%20%7C%20NumPy%20%7C%20Pandas-orange.svg)   
 
 **Aura** is a powerful backend system designed to bring price transparency to local communities. It allows users to report and track the prices of essential commodities, while leveraging Machine Learning to detect anomalies (spam protection) and forecast future price trends.
 
@@ -20,7 +20,7 @@
 
 ---
 
-## TECH STACK
+## 🛠 TECH STACK
 
 - **Framework**: [FastAPI](https://fastapi.tiangolo.com/) (Asynchronous Python)
 - **Database**: [PostgreSQL](https://www.postgresql.org/) (via [Neon Serverless](https://neon.tech/))
