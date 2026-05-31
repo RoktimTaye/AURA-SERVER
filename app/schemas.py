@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict,Field
 from datetime import datetime  # noqa: F401
 from typing import List,Optional  # noqa: F401
 
@@ -49,7 +49,9 @@ class PredictionResponse(BaseModel):
 class UserCreate(BaseModel):
     email: str
     password: str
+    full_name: str = Field(..., alias="fullName")
     # role: str = "user"
+    model_config = ConfigDict(populate_by_name=True)
 
 class Token(BaseModel):
     access_token: str

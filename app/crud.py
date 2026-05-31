@@ -15,7 +15,7 @@ def create_user(db:Session, user: schemas.UserCreate):
     # hashed_password = pwd_context.hash(user.password)
     hashed_password = pwd_context.hash(safe_password)
     # db_user = models.User(email=user.email,hashed_password=hashed_password,role=user.role)
-    db_user = models.User(email=user.email,hashed_password=hashed_password,role='admin')
+    db_user = models.User(email=user.email,full_name=user.full_name,hashed_password=hashed_password,role='admin')
     
     db.add(db_user)
     db.commit()
