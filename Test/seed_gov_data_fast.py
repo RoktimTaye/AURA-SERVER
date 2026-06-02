@@ -1,6 +1,7 @@
 import pandas as pd
 import datetime
 from sqlalchemy.orm import Session
+from typing import cast
 from app.database import SessionLocal
 from app import models
 def fast_import(csv_path: str):
@@ -17,9 +18,9 @@ def fast_import(csv_path: str):
     
     print("Pre-caching existing data to speed up processing...")
     # Cache Items: {name: id}
-    item_cache = {i.name: i.id for i in db.query(models.Item).all()}
+    item_cache: dict[str, int] = {str(i.name): cast(int, i.id) for i in db.query(models.Item).all()}
     # Cache Locations: {(name, district, state): id}
-    loc_cache = {(l.name, l.district, l.state): l.id for l in db.query(models.Location).all()}
+    loc_cache: dict[tuple[str, str, str], int] = {(str(loc.name), str(loc.district), str(loc.state)): cast(int, loc.id) for loc in db.query(models.Location).all()}
     # Cache existing PriceEntries to avoid duplicates: {(item_id, loc_id, timestamp, price)}
     # We only cache the GovBot's entries to save memory
     existing_entries = set()
@@ -42,7 +43,7 @@ def fast_import(csv_path: str):
                 new_item = models.Item(name=item_name, unit="kg")
                 db.add(new_item)
                 db.flush()
-                item_cache[item_name] = new_item.id
+                item_cache[item_name] = cast(int, new_item.id)
             item_id = item_cache[item_name]
 
             # B. Location Lookup/Create
@@ -55,13 +56,13 @@ def fast_import(csv_path: str):
                 new_loc = models.Location(name=market, district=district, state=state)
                 db.add(new_loc)
                 db.flush()
-                loc_cache[loc_key] = new_loc.id
+                loc_cache[loc_key] = cast(int, new_loc.id)
             loc_id = loc_cache[loc_key]
 
             # C. Price Entry
             try:
                 arrival_date = datetime.datetime.strptime(row['Arrival_Date'], "%d/%m/%Y")
-            except:
+            except (ValueError, TypeError):
                 arrival_date = datetime.datetime.now()
             
             price = float(row['Modal_x0020_Price'])

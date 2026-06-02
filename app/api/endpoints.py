@@ -8,14 +8,17 @@ from ..ml import engine as ml_engine
 from dotenv import load_dotenv, find_dotenv
 import jwt
 import os
+from fastapi.security import OAuth2PasswordBearer
 
 router = APIRouter()
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 env_path = os.path.join(basedir, "..", "..", ".env")
 load_dotenv(find_dotenv(env_path))
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM")
+SECRET_KEY = os.getenv("SECRET_KEY","your-secret-key")
+ALGORITHM = os.getenv("ALGORITHM","HS256")
 ACCESS_TOKEN_EXPIRES_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRES_MINUTES",30))
 def create_access_token(data: dict,expires_delta: timedelta | None = None):
     to_encode = data.copy()
@@ -89,8 +92,24 @@ def read_directory(district: str = None, item: str = None, db: Session= Depends(
         })
     return formatted_data
 
+def get_current_user_info(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token,SECRET_KEY,algorithms=[ALGORITHM])
+        return {"email": payload.get("sub"),"role": payload.get("role")}
+    except:
+        return None
+
 @router.post("/upload")
-def upload_price(submission: schemas.PriceCreate, user_id: int, db: Session = Depends(get_db)):
+def upload_price(submission: schemas.PriceCreate, db: Session = Depends(get_db),user_info: dict = Depends(get_current_user_info)):
+    
+    current_role = "user"
+    current_user_id = None
+    
+    if user_info:
+        role = user_info.get("role", "user")
+        db_user = crud.get_user_by_email(db, user_info["email"])
+        if db_user:
+            user_id = db_user.id
     # Fetch historical data fro this specific item to check for anomalies
     historical_prices = db.query(models.PriceEntry.price).join(models.Item).filter(models.Item.name == submission.item_name).filter(models.PriceEntry.status == "APPROVED").all()
     # Convert SQL results to a simple list of numbers
@@ -100,7 +119,7 @@ def upload_price(submission: schemas.PriceCreate, user_id: int, db: Session = De
     status = "FLAGGED" if is_anomaly else "APPROVED"
     ''' Saves the submission to the DB
     User ID is now passed dynamically through the endpoint '''
-    return crud.create_price_submission(db,submission,user_id=user_id,status=status)
+    return crud.create_price_submission(db,submission, user_id = current_user_id,role=current_role,status=status)
 
 @router.put("/vote/{entry_id}")
 def vote_entry(entry_id: int, upvote: bool = True, db:Session = Depends(get_db)):

@@ -9,3 +9,5 @@ check_db.py
 repro.py
 test_directory_diag.py
 test_directory_perf.py
+check_roles.py
+test_null_user.py
