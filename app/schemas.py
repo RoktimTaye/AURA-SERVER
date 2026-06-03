@@ -17,19 +17,17 @@ class PriceCreate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 # What data users will receive(Table view)
 class DirectoryView(BaseModel):
-    id:int
+    id: int
+    item_id: int
     item_name:str
-    unit: str
-    price_modal: float 
+    unit:str
+    price_modal:float
     price_range: str
     locality_full:str
-    # price_display:str
-    # range_miles:float
-    # area:str
     votes:int
     status: str
     timestamp: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 class ForecastDay(BaseModel):

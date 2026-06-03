@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from . import models, schemas
 from passlib.context import CryptContext
-from sqlalchemy import func
+from sqlalchemy import or_
 
 pwd_context = CryptContext(schemes=['pbkdf2_sha256'],
                            deprecated='auto')
@@ -53,50 +53,35 @@ def get_or_create_location(db: Session, location_name: str, district: str = None
     return location
 
 def get_directory_data(db: Session, search_item: Optional[str] = None, search_district: Optional[str] = None, limit: int =100,offset: int = 0):
-    # ... (existing code)
-    # 1. Define the columns we want to select
+    # 1. Define the columns we want to select (No aggregates for fast loading)
     query = db.query(
         models.PriceEntry.id,
         models.Item.name.label("item_name"),
         models.Item.unit,
         models.PriceEntry.price.label("price_modal"),
-        # func.min(models.PriceEntry.price).label("min_price"),
-        # func.max(models.PriceEntry.price).label("max_price"),
         models.Location.district,
-        # models.PriceEntry.distance_miles.label("range_miles"),
-        
-        models.Location.name.label("market_name"), #Added this 
+        models.Location.name.label("market_name"),
         models.PriceEntry.votes,
         models.PriceEntry.status,
         models.PriceEntry.timestamp,
-        models.PriceEntry.item_id, #Added this
-        #AGGREGATES: This replaces the loop queries
-        func.min(models.PriceEntry.price).label("min_price"),
-        func.max(models.PriceEntry.price).label("max_price")
+        models.PriceEntry.item_id
     ).join(models.Item).join(models.Location)
-        # Add this insted of line 41 and 44 if something breakes
-        # .join(models.Item).join(models.Location).filter(models.PriceEntry.status == "APPROVED")
         
-    # 2. Join the necessary tables
-    '''Removed this because this line is an extra code for joining the tables'''
-    # query = query.join(models.Item).join(models.Location) 
-    
-    # 3. Apply base filters
+    # 2. Apply base filters
     query = query.filter(models.PriceEntry.status == "APPROVED")
     
-    # 4. Apply optional search filters
+    # 3. Apply optional search filters
     if search_item:
         query = query.filter(models.Item.name.ilike(f"%{search_item}%"))
     if search_district:
-        query = query.filter(models.Location.district.ilike(f"%{search_district}%"))
+        query = query.filter(
+            or_(
+                models.Location.district.ilike(f"%{search_district}%"),
+                models.Location.name.ilike(f"%{search_district}%")
+            )
+        )
 
-    # 5. Group the results
-    # query = query.group_by(models.Item.name, models.Item.unit, models.Location.name)
-    
-    # GROUP BY is critical when using min/max with other columns
-    # We group by the unique identifiers of the result rows
-    query = query.group_by(models.PriceEntry.id,models.Item.name,models.Item.unit,models.Location.district,models.Location.name)
-    # 6. Apply Pagination
+    # 4. Apply Pagination
     return query.order_by(models.PriceEntry.timestamp.desc()).offset(offset).limit(limit).all()
 
 def create_price_submission(db: Session, submission: schemas.PriceCreate, user_id: Optional[int] = None, role: str = "user", status: str = "APPROVED"):

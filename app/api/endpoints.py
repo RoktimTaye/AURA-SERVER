@@ -78,13 +78,11 @@ def read_directory(district: str = None, item: str = None, db: Session= Depends(
         
         formatted_data.append({
             "id": entry.id,
+            "item_id": entry.item_id,
             "item_name": entry.item_name,
             "unit": entry.unit,
             "price_modal": entry.price_modal,
-            # "price_range": f"{int(range_stats[0])}-{int(range_stats[1])}" if range_stats[0] else"N/A",
-            "price_range":
-    # f"{int(range_stats[0])}-{int(range_stats[1])}"if range_stats and range_stats[0] is not None else "N/A"
-    f"{int(entry.min_price)} - {int(entry.max_price)}" if entry.min_price is not None else "N/A",
+            "price_range": f"{int(entry.price_modal * 0.95)} - {int(entry.price_modal * 1.05)}",
             "locality_full": f"{entry.district} {entry.market_name}",
             "votes": entry.votes,
             "status": entry.status,
