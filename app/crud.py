@@ -15,7 +15,7 @@ def create_user(db:Session, user: schemas.UserCreate):
     # hashed_password = pwd_context.hash(user.password)
     hashed_password = pwd_context.hash(safe_password)
     # db_user = models.User(email=user.email,hashed_password=hashed_password,role=user.role)
-    db_user = models.User(email=user.email,full_name=user.full_name,hashed_password=hashed_password,role='user')
+    db_user = models.User(email=user.email,full_name=user.full_name,hashed_password=hashed_password,role=user.role)
     
     db.add(db_user)
     db.commit()
@@ -99,7 +99,7 @@ def get_directory_data(db: Session, search_item: Optional[str] = None, search_di
     # 6. Apply Pagination
     return query.order_by(models.PriceEntry.timestamp.desc()).offset(offset).limit(limit).all()
 
-def create_price_submission(db: Session, submission: schemas.PriceCreate, user_id: None,role:str = "user", status: str = "APPROVED"):
+def create_price_submission(db: Session, submission: schemas.PriceCreate, user_id: Optional[int] = None, role: str = "user", status: str = "APPROVED"):
     # The logic is now instantly readable thanks to the helper functions
     db_item = get_or_create_item(db, submission.item_name)
     db_loc = get_or_create_location(

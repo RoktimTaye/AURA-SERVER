@@ -8,13 +8,18 @@ from typing import cast
 # Add the app directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.database import SessionLocal
+from app.database import SessionLocal, engine, Base
 from app import models
 from app.crud import pwd_context
 
 def seed_dataset2(csv_path: str):
+    # Ensure tables exist
+    print("Initializing database tables...")
+    Base.metadata.create_all(bind=engine)
+    
     db: Session = SessionLocal()
-    df = pd.read_csv(csv_path)
+    # Skip the HXL tag row (the second row) and handle mixed types
+    df = pd.read_csv(csv_path, skiprows=[1], low_memory=False)
     
     print("Pre-caching existing data to speed up processing...")
     

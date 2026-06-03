@@ -50,7 +50,7 @@ class UserCreate(BaseModel):
     email: str
     password: str
     full_name: str = Field(..., alias="fullName")
-    # role: str = "user"
+    role: str = "user"
     model_config = ConfigDict(populate_by_name=True)
 
 class Token(BaseModel):

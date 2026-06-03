@@ -11,7 +11,6 @@ class User(Base):
     email = Column(String, unique=True,index=True)
     full_name = Column(String, nullable=False)
     hashed_password = Column(String)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     role = Column(String,default="user") 
     
 class Item(Base):
@@ -35,7 +34,7 @@ class PriceEntry(Base):
     id = Column(Integer,primary_key=True,index=True)
     item_id = Column(Integer,ForeignKey("items.id"), index=True)
     location_id = Column(Integer, ForeignKey("locations.id"), index=True)
-    user_id = Column(Integer,ForeignKey("users.id"),nullable=True)
+    user_id = Column(Integer,ForeignKey("users.id"), nullable=True)
     role = Column(String,default="user")
     
     # Price Entry table attributes (columns)
@@ -49,6 +48,7 @@ class PriceEntry(Base):
     # Relationships to pull names easily
     item = relationship("Item")
     location = relationship("Location")
+    user = relationship("User")
     
     __table_args__ = (
         Index('idx_price_status_item','status','item_id'),

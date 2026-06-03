@@ -12,7 +12,7 @@ from fastapi.security import OAuth2PasswordBearer
 
 router = APIRouter()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 env_path = os.path.join(basedir, "..", "..", ".env")
@@ -26,9 +26,9 @@ def create_access_token(data: dict,expires_delta: timedelta | None = None):
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-        to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode,SECRET_KEY,algorithm=ALGORITHM)
-        return encoded_jwt
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode,SECRET_KEY,algorithm=ALGORITHM)
+    return encoded_jwt
 @router.post("/signup")
 def signup(user:schemas.UserCreate,db: Session = Depends(get_db)):
     db_user = crud.get_user_by_email(db,email=user.email)
@@ -93,10 +93,12 @@ def read_directory(district: str = None, item: str = None, db: Session= Depends(
     return formatted_data
 
 def get_current_user_info(token: str = Depends(oauth2_scheme)):
+    if not token:
+        return None
     try:
         payload = jwt.decode(token,SECRET_KEY,algorithms=[ALGORITHM])
         return {"email": payload.get("sub"),"role": payload.get("role")}
-    except:
+    except Exception:
         return None
 
 @router.post("/upload")
@@ -106,10 +108,10 @@ def upload_price(submission: schemas.PriceCreate, db: Session = Depends(get_db),
     current_user_id = None
     
     if user_info:
-        role = user_info.get("role", "user")
+        current_role = user_info.get("role", "user")
         db_user = crud.get_user_by_email(db, user_info["email"])
         if db_user:
-            user_id = db_user.id
+            current_user_id = db_user.id
     # Fetch historical data fro this specific item to check for anomalies
     historical_prices = db.query(models.PriceEntry.price).join(models.Item).filter(models.Item.name == submission.item_name).filter(models.PriceEntry.status == "APPROVED").all()
     # Convert SQL results to a simple list of numbers
