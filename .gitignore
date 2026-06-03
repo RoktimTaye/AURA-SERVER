@@ -11,3 +11,8 @@ test_directory_diag.py
 test_directory_perf.py
 check_roles.py
 test_null_user.py
+test_null_user.py
+test_explain.py
+add_index.py
+aura_dataset_seeding.py
+test_directory_perf_v2.py
