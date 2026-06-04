@@ -53,7 +53,7 @@ def get_or_create_location(db: Session, location_name: str, district: str = None
     return location
 
 def get_directory_data(db: Session, search_item: Optional[str] = None, search_district: Optional[str] = None, limit: int =100,offset: int = 0):
-    # 1. Define the columns we want to select (No aggregates for fast loading)
+    # 1. Define the columns we want to select
     query = db.query(
         models.PriceEntry.id,
         models.Item.name.label("item_name"),
@@ -66,23 +66,34 @@ def get_directory_data(db: Session, search_item: Optional[str] = None, search_di
         models.PriceEntry.timestamp,
         models.PriceEntry.item_id
     ).join(models.Item).join(models.Location)
-        
+
     # 2. Apply base filters
     query = query.filter(models.PriceEntry.status == "APPROVED")
-    
-    # 3. Apply optional search filters
-    if search_item:
-        query = query.filter(models.Item.name.ilike(f"%{search_item}%"))
-    if search_district:
+
+    # 3. Apply optional search filters with trimming for robustness
+    if search_item and search_item.strip():
+        query = query.filter(models.Item.name.ilike(f"%{search_item.strip()}%"))
+    if search_district and search_district.strip():
         query = query.filter(
             or_(
-                models.Location.district.ilike(f"%{search_district}%"),
-                models.Location.name.ilike(f"%{search_district}%")
+                models.Location.district.ilike(f"%{search_district.strip()}%"),
+                models.Location.name.ilike(f"%{search_district.strip()}%")
             )
         )
 
-    # 4. Apply Pagination
-    return query.order_by(models.PriceEntry.timestamp.desc()).offset(offset).limit(limit).all()
+    # 4. Get total count before applying limit/offset
+    total_count = query.count()
+
+    # 5. Determine Deterministic Sort Order (The Tie-Breaker)
+    # We always include id.desc() to ensure the order never changes for identical votes
+    if search_item or search_district:
+        order = [models.PriceEntry.votes.desc(), models.PriceEntry.id.desc()]
+    else:
+        order = [models.PriceEntry.timestamp.desc(), models.PriceEntry.id.desc()]
+
+    # 6. Get paginated results with the chosen order
+    # Applying order_by with multiple columns for stability
+    return query.order_by(*order).offset(offset).limit(limit).all(), total_count
 
 def create_price_submission(db: Session, submission: schemas.PriceCreate, user_id: Optional[int] = None, role: str = "user", status: str = "APPROVED"):
     # The logic is now instantly readable thanks to the helper functions

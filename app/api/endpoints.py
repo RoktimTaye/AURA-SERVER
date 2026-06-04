@@ -1,7 +1,7 @@
 from datetime import timedelta, timezone,datetime
 from fastapi import APIRouter, Depends,HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import Optional
 from ..database import get_db
 from ..import crud,schemas,models
 from ..ml import engine as ml_engine
@@ -47,35 +47,22 @@ def login(user_credentials: schemas.UserLogin,db: Session = Depends(get_db)):
     # return {"message": "Login Sucessfull", "role": user.role}
     return {"access_token": access_token,"token_type": "bearer"}
 
-@router.get("/directory", response_model=List[schemas.DirectoryView])
-def read_directory(district: str = None, item: str = None, db: Session= Depends(get_db),skip: int = 0,limit: int = 100):  # ty:ignore[invalid-parameter-default]
-    # data = crud.get_directory_data(db,search_item=item,search_district=district)
+@router.get("/directory")
+def read_directory(district: Optional[str] = None, item: Optional[str] = None, db: Session = Depends(get_db), skip: int = 0, limit: int = 20):
+    # Debug print to verify parameters reaching the backend
+    print(f"SEARCH DEBUG: district='{district}', item='{item}'")
     
-    #Pass pagination to CRUD
-    data = crud.get_directory_data(db,search_item=item,search_district=district,limit=limit,offset=skip)
+    # Explicitly use keyword arguments to prevent positional mismatch
+    items_raw, total = crud.get_directory_data(
+        db, 
+        search_item=item, 
+        search_district=district, 
+        limit=limit, 
+        offset=skip
+    )
+    
     formatted_data = []
-    '''NOTICE: No more database queries inside this loop!
-        We access 'min_price' and 'max_price' which were already fetched.'''
-    for entry in data:
-        '''Old Seperate Rough section'''
-        # formatted_data.append({
-        #     "id":entry.id,
-        #     "item_name":entry.item_name,
-        #     "price_display": f"{int(entry.min_price)}-{int(entry.max_price)} /{entry.unit}",
-        #     "range_miles":entry.range_miles,
-        #     "area": entry.area,
-        #     "votes": entry.votes
-        # })
-        '''New Seperate code'''
-        # range_stats = db.query(
-        #     func.min(models.PriceEntry.price),
-        #     func.max(models.PriceEntry.price)
-        # ).join(models.Location).filter(
-        #     models.PriceEntry.item_id == entry.item_id,
-        #     models.Location.district == entry.district,
-        #     models.PriceEntry.status == "APPROVED"
-        # ).first()
-        
+    for entry in items_raw:
         formatted_data.append({
             "id": entry.id,
             "item_id": entry.item_id,
@@ -88,7 +75,9 @@ def read_directory(district: str = None, item: str = None, db: Session= Depends(
             "status": entry.status,
             "timestamp": entry.timestamp
         })
-    return formatted_data
+    
+    # Return as an object
+    return {"total": total, "items": formatted_data}
 
 def get_current_user_info(token: str = Depends(oauth2_scheme)):
     if not token:
