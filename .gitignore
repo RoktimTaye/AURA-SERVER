@@ -16,3 +16,7 @@ test_explain.py
 add_index.py
 aura_dataset_seeding.py
 test_directory_perf_v2.py
+verify_import.py
+crud2.py
+app/ml/models_modular/
+__pycache__/
