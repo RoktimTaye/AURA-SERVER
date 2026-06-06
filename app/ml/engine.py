@@ -1,33 +1,4 @@
-from prophet import Prophet
-import pandas as pd
 import numpy as np
-
-# Forcasting price
-def generate_forcast(prices_data):
-    if len(prices_data) < 10:
-        return [] #need atleast 10 datapoints to see the trend
-    
-    #Convert DB into a Panda Dataframe
-    df = pd.DataFrame(prices_data,columns=['y','ds'])
-    
-    '''Initialization and Prophet Model training
-    Training will be based on 6 months data not yearly data
-    So we will be using the daily_seasonality'''
-    model = Prophet(daily_seasonality=True,weekly_seasonality=True)
-    model.fit(df)
-    
-    # Create a future timeline for the next 7 days
-    future = model.make_future_dataframe(periods=7)
-    
-    # Predict the prices for those future dates
-    forcast = model.predict(future)
-    
-    '''Extract only the Date (ds) and the Predicted Price (yhat)
-    yhat_lower and yhat_upper can be used to show "uncertainty" on
-    the graph'''
-    results = forcast[['ds','yhat']].tail(7).to_dict('records')
-    return results
-    
 # Anomaly detection 
 def detect_anomaly(new_price:float, historical_prices: list):
     """Uses the Z-Score method to detect outliers.
