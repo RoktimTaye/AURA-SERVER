@@ -1,3 +1,4 @@
+from ..ml.module.pipeline import process_single_task
 from datetime import timedelta, timezone,datetime
 from fastapi import APIRouter, Depends,HTTPException
 from sqlalchemy.orm import Session
@@ -70,6 +71,7 @@ def read_directory(district: Optional[str] = None, item: Optional[str] = None, d
             "unit": entry.unit,
             "price_modal": entry.price_modal,
             "price_range": f"{int(entry.price_modal * 0.95)} - {int(entry.price_modal * 1.05)}",
+            "district": entry.district,
             "locality_full": f"{entry.district} {entry.market_name}",
             "votes": entry.votes,
             "status": entry.status,
@@ -132,8 +134,23 @@ def get_item_forcast(item_id: int, district: str, db: Session = Depends(get_db))
     ).order_by(models.Forecast.target_date.asc()).all()
     
     if not predictions:
-        return {"message": "Insufficient data for forecast"}
+        # return {"message": "Insufficient data for forecast"}
+        new_predictions = process_single_task(item_id,district,fast_mode=True,use_db=True)
     
+        if not new_predictions:
+            return {"message": "Insufficient data for forecast"}
+    
+                # Save newly generated predictions to the database                   
+        for p_data in new_predictions:                                       
+            new_forecast = models.Forecast(**p_data)                         
+            db.add(new_forecast)                                             
+        db.commit()                                                           
+        # Fetch the newly saved predictions from the database to continue the flow                                                                           
+        predictions = db.query(models.Forecast).filter(                      
+            models.Forecast.item_id == item_id,                              
+            models.Forecast.district == district                             
+        ).order_by(models.Forecast.target_date.asc()).all()
+
     #Generate Dicision Support
     latest_price = predictions[0].predicted_price
     future_price = predictions[-1].predicted_price
