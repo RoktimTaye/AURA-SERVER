@@ -52,7 +52,7 @@ def get_or_create_location(db: Session, location_name: str, district: str = None
         db.refresh(location)
     return location
 
-def get_directory_data(db: Session, search_item: Optional[str] = None, search_district: Optional[str] = None, limit: int =100,offset: int = 0):
+def get_directory_data(db: Session, search_item: Optional[str] = None, search_district: Optional[str] = None, limit: int =100,offset: int = 0, is_admin: bool = False):
     # 1. Define the columns we want to select
     query = db.query(
         models.PriceEntry.id,
@@ -68,7 +68,8 @@ def get_directory_data(db: Session, search_item: Optional[str] = None, search_di
     ).join(models.Item).join(models.Location)
 
     # 2. Apply base filters
-    query = query.filter(models.PriceEntry.status == "APPROVED")
+    if not is_admin:
+        query = query.filter(models.PriceEntry.status == "APPROVED")
 
     # 3. Apply optional search filters with trimming for robustness
     if search_item and search_item.strip():
@@ -146,3 +147,35 @@ def delete_entry(db: Session, entry_id: int):
         return True
         
     return False
+
+def update_entry_status(db: Session, entry_id: int, status: str):
+    db_entry = db.query(models.PriceEntry).filter(models.PriceEntry.id == entry_id).first()
+    
+    if db_entry:
+        db_entry.status = status  # ty:ignore[invalid-assignment]
+        db.commit()
+        db.refresh(db_entry)
+        
+    return db_entry
+
+def update_entry(db: Session, entry_id: int, update_data: schemas.PriceUpdate):
+    db_entry = db.query(models.PriceEntry).filter(models.PriceEntry.id == entry_id).first()
+    if not db_entry:
+        return None
+
+    if update_data.price is not None:
+        db_entry.price = update_data.price  # ty:ignore[invalid-assignment]
+        
+    if update_data.item_name is not None and update_data.item_name.strip():
+        item = get_or_create_item(db, update_data.item_name.strip())
+        db_entry.item_id = item.id
+
+    if update_data.location_name is not None and update_data.location_name.strip():
+        existing_loc = db.query(models.Location).filter(models.Location.id == db_entry.location_id).first()
+        if existing_loc:
+            location = get_or_create_location(db, update_data.location_name.strip(), existing_loc.district, existing_loc.state)  # ty:ignore[invalid-argument-type]
+            db_entry.location_id = location.id
+
+    db.commit()
+    db.refresh(db_entry)
+    return db_entry

@@ -15,6 +15,12 @@ class PriceCreate(BaseModel):
     
         # orm_mode = True
     model_config = ConfigDict(from_attributes=True)
+
+class PriceUpdate(BaseModel):
+    price: Optional[float] = None
+    item_name: Optional[str] = None
+    location_name: Optional[str] = None
+
 # What data users will receive(Table view)
 class DirectoryView(BaseModel):
     id: int

@@ -9,7 +9,10 @@ from ..ml import engine as ml_engine
 from dotenv import load_dotenv, find_dotenv
 import jwt
 import os
+import logging
 from fastapi.security import OAuth2PasswordBearer
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -46,10 +49,10 @@ def login(user_credentials: schemas.UserLogin,db: Session = Depends(get_db)):
     access_token = create_access_token(data={"sub": user.email,"role":user.role},expires_delta=access_token_expires)
     '''Here Later JWT Token needed to be returned to the frontend, for now to test in postman we return a message'''
     # return {"message": "Login Sucessfull", "role": user.role}
-    return {"access_token": access_token,"token_type": "bearer"}
+    return {"access_token": access_token,"token_type": "bearer", "fullName": user.full_name}
 
 @router.get("/directory")
-def read_directory(district: Optional[str] = None, item: Optional[str] = None, db: Session = Depends(get_db), skip: int = 0, limit: int = 20):
+def read_directory(district: Optional[str] = None, item: Optional[str] = None, db: Session = Depends(get_db), skip: int = 0, limit: int = 20, is_admin: bool = False):
     # Debug print to verify parameters reaching the backend
     print(f"SEARCH DEBUG: district='{district}', item='{item}'")
     
@@ -59,7 +62,8 @@ def read_directory(district: Optional[str] = None, item: Optional[str] = None, d
         search_item=item, 
         search_district=district, 
         limit=limit, 
-        offset=skip
+        offset=skip,
+        is_admin=is_admin
     )
     
     formatted_data = []
@@ -145,6 +149,21 @@ def get_item_forcast(item_id: int, district: str, db: Session = Depends(get_db))
             new_forecast = models.Forecast(**p_data)                         
             db.add(new_forecast)                                             
         db.commit()                                                           
+        
+        ''' 1. This block of code is for deleting the joblib files after prediction data is saved to the database
+            2. Fetching predicted data from the Database
+            3. Buy Now or Wait to buy'''
+        
+        # Cleanup the saved joblib model file to save memory and server load
+        safe_district = str(district).replace(" ", "_").replace("/", "_")
+        model_filename = f"model_{item_id}_{safe_district}.joblib"
+        model_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "ml", "models_modular", model_filename)
+        if os.path.exists(model_path):
+            try:
+                os.remove(model_path)
+            except OSError as e:
+                logger.warning(f"Failed to remove model file {model_path}: {e}")
+
         # Fetch the newly saved predictions from the database to continue the flow                                                                           
         predictions = db.query(models.Forecast).filter(                      
             models.Forecast.item_id == item_id,                              
@@ -167,6 +186,8 @@ def get_item_forcast(item_id: int, district: str, db: Session = Depends(get_db))
                         }
                         for p in predictions]}
 
+'''This Routing Function's allows the admin with additional adjustment access to manipulate and manage the data'''
+
 @router.delete("/admin/entry/{entry_id}")
 def admin_delete(entry_id:int, db:Session = Depends(get_db)):
     #Completely removes bad entry from the database
@@ -174,3 +195,17 @@ def admin_delete(entry_id:int, db:Session = Depends(get_db)):
     if not sucess:
         raise HTTPException(status_code=404,detail="Entry not found")
     return {"message": "Deleted sucessfully"}
+
+@router.put("/admin/entry/{entry_id}/status")
+def admin_update_status(entry_id: int, status: str, db: Session = Depends(get_db)):
+    updated_entry = crud.update_entry_status(db, entry_id, status)
+    if not updated_entry:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    return {"message": "Status updated successfully", "status": updated_entry.status}
+
+@router.put("/admin/entry/{entry_id}")
+def admin_update_entry(entry_id: int, update_data: schemas.PriceUpdate, db: Session = Depends(get_db)):
+    updated_entry = crud.update_entry(db, entry_id, update_data)
+    if not updated_entry:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    return {"message": "Entry updated successfully"}

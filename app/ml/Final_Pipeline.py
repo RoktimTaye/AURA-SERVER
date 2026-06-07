@@ -4,6 +4,7 @@ import joblib
 import itertools
 import pandas as pd
 import numpy as np
+import glob
 from typing import Any, List, Dict
 from datetime import datetime, UTC
 from concurrent.futures import ProcessPoolExecutor
@@ -192,6 +193,13 @@ def run_ml_pipeline():
             db.query(models.Forecast).delete(synchronize_session=False)
             db.bulk_insert_mappings(inspect(models.Forecast), all_forecasts)
             db.commit()
+            
+            # Cleanup all generated joblib files to save memory and reduce server load
+            for f in glob.glob(os.path.join(MODELS_DIR, "*.joblib")):
+                try:
+                    os.remove(f)
+                except Exception as e:
+                    logger.warning(f"Could not remove {f}: {e}")
             
             print("\n" + "="*50)
             print("✨ PRODUCTION PIPELINE COMPLETE")

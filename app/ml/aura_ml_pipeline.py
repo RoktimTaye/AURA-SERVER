@@ -4,6 +4,7 @@ import joblib
 import itertools
 import pandas as pd
 import numpy as np
+import glob
 from typing import Any
 from datetime import datetime,UTC
 from prophet import Prophet
@@ -157,6 +158,14 @@ def run_ml_pipeline():
                 db.query(models.Forecast).delete(synchronize_session=False)
                 db.bulk_insert_mappings(inspect(models.Forecast),all_forecasts)
                 db.commit()
+
+                # Cleanup joblib files to save memory and reduce server load
+                for f in glob.glob(os.path.join(MODELS_DIR, "*.joblib")):
+                    try:
+                        os.remove(f)
+                    except Exception as e:
+                        pass
+
                 logger.info("Production Pipeline Complete! Forecast are now optimized")
             except Exception as e:
                 db.rollback()

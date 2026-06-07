@@ -19,4 +19,7 @@ test_directory_perf_v2.py
 verify_import.py
 crud2.py
 app/ml/models_modular/
-__pycache__/
+__pycache__/
+app/__pycache__/
+app/api/__pycache__/
+app/ml/__pycache__/

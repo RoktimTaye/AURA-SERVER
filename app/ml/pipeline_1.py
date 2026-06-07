@@ -4,6 +4,7 @@ import logging
 import joblib
 import pandas as pd
 from typing import Any
+import glob
 from datetime import datetime, UTC
 from prophet import Prophet
 from sqlalchemy import inspect
@@ -162,6 +163,14 @@ def run_ml_pipeline():
                 # Use inspect to satisfy type checkers requiring a Mapper
                 db.bulk_insert_mappings(inspect(models.Forecast), all_forecasts)
                 db.commit()
+
+                # Cleanup joblib files to save memory and reduce server load
+                for f in glob.glob(os.path.join(MODELS_DIR, "*.joblib")):
+                    try:
+                        os.remove(f)
+                    except Exception as e:
+                        pass
+
                 logger.info("✨ District Pipeline Complete!")
             except Exception:
                 db.rollback()
