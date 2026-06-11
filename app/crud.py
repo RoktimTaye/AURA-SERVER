@@ -52,7 +52,7 @@ def get_or_create_location(db: Session, location_name: str, district: str = None
         db.refresh(location)
     return location
 
-def get_directory_data(db: Session, search_item: Optional[str] = None, search_district: Optional[str] = None, limit: int =100,offset: int = 0, is_admin: bool = False):
+def get_directory_data(db: Session, search_item: Optional[str] = None, search_district: Optional[str] = None, limit: int =100,offset: int = 0, is_admin: bool = False, filter_status: Optional[str] = None):
     # 1. Define the columns we want to select
     query = db.query(
         models.PriceEntry.id,
@@ -70,6 +70,8 @@ def get_directory_data(db: Session, search_item: Optional[str] = None, search_di
     # 2. Apply base filters
     if not is_admin:
         query = query.filter(models.PriceEntry.status == "APPROVED")
+    elif filter_status:
+        query = query.filter(models.PriceEntry.status == filter_status)
 
     # 3. Apply optional search filters with trimming for robustness
     if search_item and search_item.strip():

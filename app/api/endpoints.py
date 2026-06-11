@@ -2,6 +2,7 @@ from ..ml.module.pipeline import process_single_task
 from datetime import timedelta, timezone,datetime
 from fastapi import APIRouter, Depends,HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import Optional
 from ..database import get_db
 from ..import crud,schemas,models
@@ -52,9 +53,9 @@ def login(user_credentials: schemas.UserLogin,db: Session = Depends(get_db)):
     return {"access_token": access_token,"token_type": "bearer", "fullName": user.full_name}
 
 @router.get("/directory")
-def read_directory(district: Optional[str] = None, item: Optional[str] = None, db: Session = Depends(get_db), skip: int = 0, limit: int = 20, is_admin: bool = False):
+def read_directory(district: Optional[str] = None, item: Optional[str] = None, status: Optional[str] = None, db: Session = Depends(get_db), skip: int = 0, limit: int = 20, is_admin: bool = False):
     # Debug print to verify parameters reaching the backend
-    print(f"SEARCH DEBUG: district='{district}', item='{item}'")
+    print(f"SEARCH DEBUG: district='{district}', item='{item}', status='{status}'")
     
     # Explicitly use keyword arguments to prevent positional mismatch
     items_raw, total = crud.get_directory_data(
@@ -63,7 +64,8 @@ def read_directory(district: Optional[str] = None, item: Optional[str] = None, d
         search_district=district, 
         limit=limit, 
         offset=skip,
-        is_admin=is_admin
+        is_admin=is_admin,
+        filter_status=status
     )
     
     formatted_data = []
@@ -187,6 +189,64 @@ def get_item_forcast(item_id: int, district: str, db: Session = Depends(get_db))
                         for p in predictions]}
 
 '''This Routing Function's allows the admin with additional adjustment access to manipulate and manage the data'''
+
+@router.get("/admin/stats")
+def get_admin_stats(db: Session = Depends(get_db)):
+    total = db.query(models.PriceEntry).count()
+    verified = db.query(models.PriceEntry).filter(models.PriceEntry.status == "APPROVED").count()
+    pending = total - verified
+    
+    return {
+        "totalRecords": total,
+        "verifiedItems": verified,
+        "pendingItems": pending
+    }
+
+@router.get("/admin/analytics")
+def get_admin_analytics(db: Session = Depends(get_db)):
+    top_items = db.query(
+        models.Item.name,
+        func.count(models.PriceEntry.id).label("count")
+    ).join(models.Item).group_by(models.Item.name).order_by(func.count(models.PriceEntry.id).desc()).limit(5).all()
+    
+    total_entries = db.query(models.PriceEntry).count()
+    
+    pie_data = []
+    colors = ["oklch(0.78 0.2 150)", "oklch(0.55 0.18 150)", "oklch(0.7 0.05 250)", "oklch(0.4 0.02 250)", "oklch(0.85 0.05 80)"]
+    for i, (name, count) in enumerate(top_items):
+        percent = int(round((count / total_entries * 100) if total_entries > 0 else 0))
+        pie_data.append({"name": name, "value": percent, "color": colors[i % len(colors)]})
+    
+    sum_percent = sum(p["value"] for p in pie_data)
+    if sum_percent < 100 and total_entries > 0:
+        pie_data.append({"name": "Others", "value": 100 - sum_percent, "color": "oklch(0.6 0.05 200)"})
+
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    recent_entries = db.query(models.PriceEntry.timestamp, models.PriceEntry.status).filter(
+        models.PriceEntry.timestamp >= seven_days_ago
+    ).all()
+    
+    daily_stats = {}
+    for i in range(6, -1, -1):
+        d = (datetime.now(timezone.utc) - timedelta(days=i)).strftime("%b %d")
+        daily_stats[d] = {"day": d, "uploads": 0, "verified": 0}
+        
+    for entry in recent_entries:
+        if not entry.timestamp:
+            continue
+        d_str = entry.timestamp.strftime("%b %d")
+        if d_str in daily_stats:
+            daily_stats[d_str]["uploads"] += 1  # ty:ignore[unsupported-operator]
+            if entry.status == "APPROVED":
+                daily_stats[d_str]["verified"] += 1  # ty:ignore[unsupported-operator]
+                
+    bars_data = list(daily_stats.values())
+    
+    return {
+        "bars": bars_data,
+        "pie": pie_data,
+        "total": total_entries
+    }
 
 @router.delete("/admin/entry/{entry_id}")
 def admin_delete(entry_id:int, db:Session = Depends(get_db)):
