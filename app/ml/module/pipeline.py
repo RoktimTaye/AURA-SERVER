@@ -102,7 +102,7 @@ class MLPipeline:
         
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
             futures = [executor.submit(process_single_task, item_id, district, self.fast_mode) 
-                       for item_id, district in pairs]
+                        for item_id, district in pairs]
             
             for i, f in enumerate(futures):
                 res = f.result()

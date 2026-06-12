@@ -5,7 +5,7 @@ from passlib.context import CryptContext
 from sqlalchemy import or_
 
 pwd_context = CryptContext(schemes=['pbkdf2_sha256'],
-                           deprecated='auto')
+                            deprecated='auto')
 
 def get_user_by_email(db:Session,email: str):
     return db.query(models.User).filter(models.User.email == email).first()
