@@ -34,9 +34,9 @@ def hyperparameter_tuning(train_df,test_df):
     
     for params in all_params:
         try:
-            model = Prophet(yearly_seasonality=True,daily_seasonality=False,weekly_seasonality=False, **params) # type: ignore
+            model = Prophet(growth='logistic', yearly_seasonality=True,daily_seasonality=False,weekly_seasonality=False, **params) # type: ignore
             model.fit(train_df)
-            future = pd.DataFrame({'ds': test_df['ds']})
+            future = pd.DataFrame({'ds': test_df['ds'], 'cap': test_df['cap'], 'floor': test_df['floor']})
             forecast = model.predict(future)
             rmse = np.sqrt(np.mean((test_df['y'].values -forecast['yhat'].values)**2))
             if rmse < best_rmse:
@@ -91,27 +91,41 @@ def train_single_model(item_id,district_name,data_list):
     
     try:
         if len(df) >= MIN_DATA_POINTS:
+            historical_min_price = float(df['y'].min())
+            historical_max_price = float(df['y'].max())
+            realistic_floor = max(1.0, historical_min_price * 0.7)
+            realistic_ceiling = historical_max_price * 1.5
+
+            df['cap'] = realistic_ceiling
+            df['floor'] = realistic_floor
+
             train_df = df.iloc[:-7]
             test_df = df.iloc[-7:]
             best_params = hyperparameter_tuning(train_df,test_df)
-            model = Prophet(yearly_seasonality=True,daily_seasonality=False,weekly_seasonality=False, **best_params)
+            model = Prophet(growth='logistic', yearly_seasonality=True,daily_seasonality=False,weekly_seasonality=False, **best_params)
             model.fit(df)
             safe_district = str(district_name).replace(" ","_").replace("/","_")
             model_path = os.path.join(MODELS_DIR,f"brain_{item_id}_{safe_district}.joblib")
             joblib.dump(model,model_path)
             
             future = model.make_future_dataframe(periods=7)
+            future['cap'] = realistic_ceiling
+            future['floor'] = realistic_floor
             forecast = model.predict(future).tail(7)
             results = []
             for _, row in forecast.iterrows():
+                pred_price = min(realistic_ceiling, max(realistic_floor, round(float(row['yhat']),2)))
+                yhat_lower = min(realistic_ceiling, max(realistic_floor, round(float(row['yhat_lower']),2)))
+                yhat_upper = min(realistic_ceiling, max(realistic_floor, round(float(row['yhat_upper']),2)))
+
                 results.append({
                     "item_id": item_id,
                     "district":district_name,
                     "location_id":None,
                     "target_date": row['ds'].to_pydatetime(),
-                    "predicted_price": round(float(row['yhat']),2),
-                    "yhat_lower": round(float(row['yhat_lower']),2),
-                    "yhat_upper": round(float(row['yhat_upper']),2),
+                    "predicted_price": pred_price,
+                    "yhat_lower": yhat_lower,
+                    "yhat_upper": yhat_upper,
                     "trend": "STABLE",
                     "created_at": datetime.now(UTC).replace(tzinfo=None)
                 })

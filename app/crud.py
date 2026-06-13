@@ -25,8 +25,20 @@ def create_user(db:Session, user: schemas.UserCreate):
 def verify_password(plain_password,hashed_passowrd):
     return pwd_context.verify(plain_password,hashed_passowrd)
 
+def enforce_taxonomy(item_name: str) -> str:
+    name = item_name.strip()
+    generic_categories = [
+        "Lentils", "Rice", "Wheat", "Sugar", "Milk", "Potatoes", 
+        "Onions", "Tomatoes", "Tea", "Salt", "Chickpeas"
+    ]
+    for cat in generic_categories:
+        if name.lower() == cat.lower():
+            return f"{cat} (General)"
+    return name
+
 def get_or_create_item(db: Session, item_name: str) -> models.Item:
     """Finds an item by name, or creates it if it doesn't exist."""
+    item_name = enforce_taxonomy(item_name)
     item = db.query(models.Item).filter(models.Item.name == item_name).first()
     if not item:
         item = models.Item(name=item_name)

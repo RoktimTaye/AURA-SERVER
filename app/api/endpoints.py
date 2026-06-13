@@ -2,7 +2,7 @@ from ..ml.module.pipeline import process_single_task
 from datetime import timedelta, timezone,datetime
 from fastapi import APIRouter, Depends,HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, case, cast, Date
 from typing import Optional
 from ..database import get_db
 from ..import crud,schemas,models
@@ -212,35 +212,43 @@ def get_admin_analytics(db: Session = Depends(get_db)):
     total_entries = db.query(models.PriceEntry).count()
     
     pie_data = []
-    colors = ["oklch(0.78 0.2 150)", "oklch(0.55 0.18 150)", "oklch(0.7 0.05 250)", "oklch(0.4 0.02 250)", "oklch(0.85 0.05 80)"]
+    colors = ["#001A0C", "#004723", "#007539", "#00A34F", "#00D165", "#00FF7B", "#1FFF8B", "#5CFFAB", "#8AFFC2", "#B8FFDA"]
     for i, (name, count) in enumerate(top_items):
         percent = int(round((count / total_entries * 100) if total_entries > 0 else 0))
         pie_data.append({"name": name, "value": percent, "color": colors[i % len(colors)]})
     
     sum_percent = sum(p["value"] for p in pie_data)
     if sum_percent < 100 and total_entries > 0:
-        pie_data.append({"name": "Others", "value": 100 - sum_percent, "color": "oklch(0.6 0.05 200)"})
+        pie_data.append({"name": "Others", "value": 100 - sum_percent, "color": colors[-1]})
 
-    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
-    recent_entries = db.query(models.PriceEntry.timestamp, models.PriceEntry.status).filter(
-        models.PriceEntry.timestamp >= seven_days_ago
-    ).all()
+    recent_stats = db.query(
+        cast(models.PriceEntry.timestamp, Date).label("date"),
+        func.count(models.PriceEntry.id).label("uploads"),
+        func.sum(case((models.PriceEntry.status == "APPROVED", 1), else_=0)).label("verified")
+    ).group_by(cast(models.PriceEntry.timestamp, Date)).order_by(cast(models.PriceEntry.timestamp, Date).desc()).limit(7).all()
     
-    daily_stats = {}
-    for i in range(6, -1, -1):
-        d = (datetime.now(timezone.utc) - timedelta(days=i)).strftime("%b %d")
-        daily_stats[d] = {"day": d, "uploads": 0, "verified": 0}
+    bars_data = []
+    for stat_date, uploads, verified in recent_stats:
+        d_str = stat_date.strftime("%b %d")
+        bars_data.append({
+            "day": d_str,
+            "uploads": uploads,
+            "verified": int(verified) if verified else 0
+        })
         
-    for entry in recent_entries:
-        if not entry.timestamp:
-            continue
-        d_str = entry.timestamp.strftime("%b %d")
-        if d_str in daily_stats:
-            daily_stats[d_str]["uploads"] += 1  # ty:ignore[unsupported-operator]
-            if entry.status == "APPROVED":
-                daily_stats[d_str]["verified"] += 1  # ty:ignore[unsupported-operator]
-                
-    bars_data = list(daily_stats.values())
+    bars_data.reverse()
+    
+    if len(bars_data) < 7:
+        needed = 7 - len(bars_data)
+        base_date = datetime.now(timezone.utc).date()
+        if recent_stats:
+            base_date = recent_stats[0][0]
+        
+        padded = []
+        for i in range(needed, 0, -1):
+            d = (base_date - timedelta(days=i + len(bars_data))).strftime("%b %d")
+            padded.append({"day": d, "uploads": 0, "verified": 0})
+        bars_data = padded + bars_data
     
     return {
         "bars": bars_data,

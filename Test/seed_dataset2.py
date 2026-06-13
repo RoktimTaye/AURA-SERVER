@@ -12,6 +12,17 @@ from app.database import SessionLocal, engine, Base
 from app import models
 from app.crud import pwd_context
 
+def enforce_taxonomy(item_name: str) -> str:
+    name = item_name.strip()
+    generic_categories = [
+        "Lentils", "Rice", "Wheat", "Sugar", "Milk", "Potatoes", 
+        "Onions", "Tomatoes", "Tea", "Salt", "Chickpeas"
+    ]
+    for cat in generic_categories:
+        if name.lower() == cat.lower():
+            return f"{cat} (General)"
+    return name
+
 def seed_dataset2(csv_path: str):
     # Ensure tables exist
     print("Initializing database tables...")
@@ -55,7 +66,7 @@ def seed_dataset2(csv_path: str):
     for index, row in df.iterrows():
         try:
             # 1. Item Lookup/Create
-            item_name = str(row['commodity'])
+            item_name = enforce_taxonomy(str(row['commodity']))
             if item_name not in item_cache:
                 new_item = models.Item(name=item_name, unit=str(row['unit']).lower())
                 db.add(new_item)
@@ -147,5 +158,5 @@ def seed_dataset2(csv_path: str):
 
 if __name__ == "__main__":
     # Ensure this runs exactly like seed_gov_data_fast.py but for Dataset2
-    dataset_path = os.path.join(os.path.dirname(__file__), "..", "Dataset2.csv")
+    dataset_path = os.path.join(os.path.dirname(__file__), "..", "Data", "Dataset2.csv")
     seed_dataset2(dataset_path)

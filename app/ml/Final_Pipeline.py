@@ -81,8 +81,9 @@ def evaluate_and_tune(df: pd.DataFrame) -> Dict:
     
     for params in all_params:
         try:
-            m = Prophet(yearly_seasonality=True, **params).fit(train_df)
-            forecast = m.predict(pd.DataFrame({'ds': test_df['ds']}))
+            m = Prophet(growth='logistic', yearly_seasonality=True, **params).fit(train_df)
+            future = pd.DataFrame({'ds': test_df['ds'], 'cap': test_df['cap'], 'floor': test_df['floor']})
+            forecast = m.predict(future)
             
             # Evaluate using RMSE on original price scale (expm1)
             rmse = np.sqrt(np.mean((np.expm1(test_df['y'].values) - np.expm1(forecast['yhat'].values))**2))
@@ -117,11 +118,21 @@ def process_district_task(item_id: int, district: str):
         # STEP 2: PREPROCESS (TFX STYLE)
         df = preprocess_tfx_style(df)
 
+        # Calculate realistic boundaries from historical data
+        historical_min_price = float(np.expm1(df['y'].min()))
+        historical_max_price = float(np.expm1(df['y'].max()))
+        realistic_floor = max(1.0, historical_min_price * 0.7)
+        realistic_ceiling = historical_max_price * 1.5
+
+        df['cap'] = np.log1p(realistic_ceiling)
+        df['floor'] = np.log1p(realistic_floor)
+
         # STEP 3: TUNE & TRAIN (SNITCH AI STYLE)
         best_p = evaluate_and_tune(df)
         
         # Additive model with daily/weekly/yearly seasonality as per context
         model = Prophet(
+            growth='logistic',
             yearly_seasonality=True, 
             weekly_seasonality=True, 
             daily_seasonality=True,
@@ -136,18 +147,29 @@ def process_district_task(item_id: int, district: str):
         
         # STEP 4: FORECAST & INVERT LOG
         future = model.make_future_dataframe(periods=FORECAST_HORIZON_DAYS)
+        future['cap'] = np.log1p(realistic_ceiling)
+        future['floor'] = np.log1p(realistic_floor)
         forecast = model.predict(future).tail(FORECAST_HORIZON_DAYS)
         
         results = []
         for _, row in forecast.iterrows():
+            pred_price = round(float(np.expm1(row['yhat'])), 2)
+            yhat_lower = round(float(np.expm1(row['yhat_lower'])), 2)
+            yhat_upper = round(float(np.expm1(row['yhat_upper'])), 2)
+            
+            # Clamp values to prevent unrealistic crashes or exponential explosions
+            pred_price = min(realistic_ceiling, max(realistic_floor, pred_price))
+            yhat_lower = min(realistic_ceiling, max(realistic_floor, yhat_lower))
+            yhat_upper = min(realistic_ceiling, max(realistic_floor, yhat_upper))
+            
             results.append({
                 "item_id": item_id, 
                 "district": district, 
                 "location_id": None,
                 "target_date": row['ds'].to_pydatetime(),
-                "predicted_price": round(float(np.expm1(row['yhat'])), 2), # Invert log(x+1)
-                "yhat_lower": round(float(np.expm1(row['yhat_lower'])), 2),
-                "yhat_upper": round(float(np.expm1(row['yhat_upper'])), 2),
+                "predicted_price": pred_price,
+                "yhat_lower": yhat_lower,
+                "yhat_upper": yhat_upper,
                 "trend": "STABLE", 
                 "created_at": datetime.now(UTC).replace(tzinfo=None)
             })

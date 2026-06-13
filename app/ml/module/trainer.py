@@ -28,6 +28,7 @@ class ModelTrainer:
 
     def _create_model(self, params):
         return Prophet(
+            growth='logistic',
             yearly_seasonality=True,
             weekly_seasonality=True,
             daily_seasonality=False, # Set to False for monthly/daily hybrid data usually
@@ -51,7 +52,7 @@ class ModelTrainer:
         for params in all_params:
             try:
                 m = self._create_model(params).fit(train_df)
-                future = pd.DataFrame({'ds': test_df['ds']})
+                future = pd.DataFrame({'ds': test_df['ds'], 'cap': test_df['cap'], 'floor': test_df['floor']})
                 forecast = m.predict(future)
                 
                 rmse = self.evaluator.calculate_rmse(test_df['y'], forecast['yhat'])

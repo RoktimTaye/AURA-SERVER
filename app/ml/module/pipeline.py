@@ -36,7 +36,23 @@ def process_single_task(item_id, district, fast_mode=True, use_db=True):
     if len(df_clean) < 10:
         return None
 
-    # 3. Tune & Train
+    import numpy as np
+
+    # 3. Define Caps and Floors before tuning
+    historical_min_log = df_clean['y'].min()
+    historical_min_price = float(preprocessor.inverse_transform(historical_min_log))
+    historical_max_log = df_clean['y'].max()
+    historical_max_price = float(preprocessor.inverse_transform(historical_max_log))
+    realistic_floor = max(1.0, historical_min_price * 0.7)
+    realistic_ceiling = historical_max_price * 1.5
+    
+    cap_val = float(np.log1p(realistic_ceiling)) if preprocessor.use_log_transform else realistic_ceiling
+    floor_val = float(np.log1p(realistic_floor)) if preprocessor.use_log_transform else realistic_floor
+    
+    df_clean['cap'] = cap_val
+    df_clean['floor'] = floor_val
+
+    # 4. Tune & Train
     try:
         model, best_params = trainer.tune_and_train(df_clean)
         
@@ -45,14 +61,11 @@ def process_single_task(item_id, district, fast_mode=True, use_db=True):
         model_path = os.path.join(MODELS_DIR, f"model_{item_id}_{safe_district}.joblib")
         joblib.dump(model, model_path)
 
-        # Calculate a realistic minimum floor based on historical data.
-        # We allow the prediction to drop a maximum of 30% below the historical all-time low.
-        historical_min_log = df_clean['y'].min()
-        historical_min_price = float(preprocessor.inverse_transform(historical_min_log))
-        realistic_floor = max(1.0, historical_min_price * 0.7)
-
+        # 5. Forecast
         # 5. Forecast
         future = model.make_future_dataframe(periods=7)
+        future['cap'] = cap_val
+        future['floor'] = floor_val
         forecast = model.predict(future).tail(7)
 
         # 6. Format results
@@ -62,10 +75,10 @@ def process_single_task(item_id, district, fast_mode=True, use_db=True):
             lower = round(float(preprocessor.inverse_transform(row['yhat_lower'])), 2)
             upper = round(float(preprocessor.inverse_transform(row['yhat_upper'])), 2)
             
-            # Prevent unrealistic price crashes by clamping to the dynamic historical floor
-            pred_price = max(realistic_floor, pred_price)
-            lower = max(realistic_floor, lower)
-            upper = max(realistic_floor, upper)
+            # Prevent unrealistic price crashes by clamping to the dynamic historical floor and ceiling
+            pred_price = min(realistic_ceiling, max(realistic_floor, pred_price))
+            lower = min(realistic_ceiling, max(realistic_floor, lower))
+            upper = min(realistic_ceiling, max(realistic_floor, upper))
 
             results.append({
                 "item_id": item_id,
