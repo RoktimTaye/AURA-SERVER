@@ -116,7 +116,16 @@ def upload_price(submission: schemas.PriceCreate, db: Session = Depends(get_db),
     status = "FLAGGED" if is_anomaly else "APPROVED"
     ''' Saves the submission to the DB
     User ID is now passed dynamically through the endpoint '''
-    return crud.create_price_submission(db,submission, user_id = current_user_id,role=current_role,status=status)
+    entry = crud.create_price_submission(db,submission, user_id = current_user_id,role=current_role,status=status)
+    
+    if status == "APPROVED":
+        db.query(models.Forecast).filter(
+            models.Forecast.item_id == entry.item_id,
+            models.Forecast.district == submission.district
+        ).delete()
+        db.commit()
+        
+    return entry
 
 @router.put("/vote/{entry_id}")
 def vote_entry(entry_id: int, upvote: bool = True, db:Session = Depends(get_db)):
