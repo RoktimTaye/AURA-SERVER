@@ -5,7 +5,7 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-336791.svg?style=flat&logo=postgresql&logoColor=white)
 ![ML](https://img.shields.io/badge/ML-Prophet%20%7C%20NumPy%20%7C%20Pandas-orange.svg)   
 
-**Aura** is a powerful backend system designed to bring price transparency to local communities. It allows users to report and track the prices of essential commodities, while leveraging Machine Learning to detect anomalies (spam protection) and forecast future price trends.
+**Aura** is a powerful backend system designed to bring price transparency to local communities. It allows users to report and track the prices of essential groceries, while leveraging Machine Learning to detect anomalies (spam protection) and forecast future price trends.
 
 ---
 
@@ -33,7 +33,6 @@
   - [Pandas](https://pandas.pydata.org/) (Data manipulation)
 - **Validation**: [Pydantic](https://docs.pydantic.dev/)
 - **Security**: JWT (JSON Web Tokens)
-- **Deployment**: Docker-ready with GitHub Actions CI/CD plan.
 
 ---
 
@@ -63,7 +62,7 @@
 ## ⚙️ Getting Started
 
 ### Prerequisites
-- Python 3.10 or higher
+- Python 3.11 or higher
 - PostgreSQL (Local or Neon.tech)
 
 ### Installation
@@ -147,12 +146,3 @@ Using **Facebook Prophet**, the system analyzes seasonal trends and historical f
 The `Test/` directory contains several utility scripts:
 - `seed_dataset2.py`: Bulk imports government dataset records.
 - `evaluate_ml_performance.py`: Generates residual plots and performance metrics for the ML models.
-
----
-
-## 🛡️ CI/CD & Deployment
-This project includes a GitHub Actions workflow (`.github/workflows/ml_pipeline.yml`) that automates:
-1. **Linting & Code Quality**: Ensuring PEP 8 compliance.
-2. **Automated Testing**: Running `pytest` on API and ML logic.
-3. **Deployment**: Building Docker images and deploying to target environments.
-
