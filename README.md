@@ -113,11 +113,12 @@ Once the server is running, you can access the interactive documentation:
 ### Core Endpoints Summary
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
+| `GET` | `/` | Health check endpoint |
 | `POST` | `/api/signup` | Register a new user |
 | `POST` | `/api/login` | Authenticate user and receive JWT |
 | `GET` | `/api/directory` | Fetch filtered list of price entries |
 | `POST` | `/api/upload` | Submit a new price (Triggers Anomaly Detection) |
-| `PUT` | `/api/vote/{id}` | Upvote/Downvote a price entry |
+| `PUT` | `/api/vote/{entry_id}` | Upvote/Downvote a price entry |
 | `GET` | `/api/forecast/{item_id}` | Get 7-day price predictions |
 
 ### Admin Endpoints Summary
@@ -125,9 +126,9 @@ Once the server is running, you can access the interactive documentation:
 | :--- | :--- | :--- |
 | `GET` | `/api/admin/stats` | Fetch overall data statistics |
 | `GET` | `/api/admin/analytics` | Fetch advanced analytics & recent activity |
-| `PUT` | `/api/admin/entry/{id}` | Edit an existing price entry |
-| `PUT` | `/api/admin/entry/{id}/status` | Update approval status of an entry |
-| `DELETE` | `/api/admin/entry/{id}` | Delete a price entry permanently |
+| `PUT` | `/api/admin/entry/{entry_id}` | Edit an existing price entry |
+| `PUT` | `/api/admin/entry/{entry_id}/status` | Update approval status of an entry |
+| `DELETE` | `/api/admin/entry/{entry_id}` | Delete a price entry permanently |
 
 ---
 
